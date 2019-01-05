@@ -2,7 +2,6 @@
 date=$(date +%d.%m.%Y);
 day=$(date +%-d);
 month=$(date +%-m);
-source /etc/synoinfo.conf;
 to_notification='User email <@>'
 to_report='Admin email <@>'
 from='Staubsauger-Erinnerung <staubsauger-erinnerung@dominicreich.com>';
