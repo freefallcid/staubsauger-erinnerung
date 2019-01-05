@@ -1,31 +1,48 @@
-#!/bin/sh
-# Erinnerung versenden, damit man den Staubsauger im Keller
-# nicht vergisst zu reinigen.
-# Intervall bis jetzt: alle 2 Monate
-# 
-# Last modified: Samstag, 05.01.2019 10:48
-#
+# This script is now ron from Synology webinterface on my DiskStation
+# I'll port this one back into a shell script again - this one currently does not work properly
+# so I need more testing but don't have that time yet. I want to save this down somewhere in case
+# that I need to recover this. (it does not produce any errors on my DiskStation for now, but it also
+# does not send any mails out, no logs, nothing...)
 
-HEUTE="`date +%_d`"
-FROM='Staubsauger-Erinnerung <@>'
-BETREFF='Staubsauger-Reinigung vom '`date +%d.%m.%Y`
-TO='User 1 <@>'
-CC='User 2 <@>'
+date=$(date +%d.%m.%Y);
+day=$(date +%-d);
+month=$(date +%-m);
+source /etc/synoinfo.conf;
+from='Staubsauger-Erinnerung <staubsauger-erinnerung@dominicreich.com>';
+subject=`printf "Staubsauger-Erinnerung vom %s" "$date"`;
+host=$(/bin/hostname);
+headers=`printf "From: $from\r\n"`;
 
-# SENDCC: Send a copy to myself ($CC) - or only the report.
-SENDCC="NO"
-SENDREPORT='NO'
-
-if [ $HEUTE -gt "7" ]; then
-  # nicht versenden
-  SENDREPORT='NO'
-  SENDREPORTMSG='nicht '
-  #return 0
+if [ ${#eventmail2} -gt 0 ]; then
+    to=`printf "%s, %s" "$eventmail1" "$eventmail2"`;
 else
-  # versenden
-  SENDREPORT='YES'
-  SENDREPORTMSG=''
-  BODY='<html>
+    to=$eventmail1;
+fi
+
+to_report=$eventmail1;
+subject_report=`printf "\[Cron Report\] $subject"`;
+
+send='no';
+send_report_msg='nicht ';
+
+echo "debug: now we select month";
+
+if [ $month == "1" || $month == "3" || $month == "5" || $month == "7" || $month == "9" || $month == "11" ]; then
+    # in diesem Monat senden
+    echo "debug: month selected... : $month";
+    if [ $day -gt "7" ]; then
+        echo "debug: day selected... : $day - from: $date";
+        # nicht senden, falls wir schon nach der ersten woche sind
+        # -> kein 1. Samstag nach 7 Tagen im Monat möglich
+        send='no';
+        send_report_msg='nicht ';
+    else
+        echo "debug: day over 7... : $day - from: $date";
+        # das ist wohl der erste Samstag im oben genannten Monat - los geht's
+        send='yes';
+        send_report_msg='';
+
+        body='<html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="HandheldFriendly" content="True">
@@ -50,10 +67,16 @@ else
 </body>
 </html>
 <!-- lichtlein ;) -->
-'
+';
+    fi
+else
+    echo "debug: not in this month... - $month";
+    # in diesem Monat nicht
+    send='no';
+    send_report_msg='nicht ';
 fi
 
-BODYMG='<html>
+bodymg='<html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="HandheldFriendly" content="True">
@@ -64,32 +87,21 @@ BODYMG='<html>
 <body>
   <h3>Staubsaugerreinigung vom '`date +%d.%m.%Y`'</h3>
   <div class="main">
-    <p>Die Erinnerung wurde heute ('$(date +%d.%m.%Y)') <strong>'"$SENDREPORTMSG"'versendet</strong>.</p>
+    <p>Die Erinnerung wurde heute <strong>'"$send_report_msg"'versendet</strong>.</p>
   </div>
-  <hr size="1" width="100%" align="left">
-  <div class="sig">
-    <p>Aktueller Crontab Eintrag:</p>
-        <div class="cron"><code><pre>'$(crontab -l|egrep "(^[^#][0-9])(.*staubsauger.*)\>")'</pre></code></div>
-  </div>
-  <p>Falls du keinen Crontab Eintrag siehst, wurde das Skript manuell ausgeführt.</p>
+  <!-- <hr size="1" width="100%" align="left"> -->
 </body>
 </html>
 <!-- lichtlein ;) -->
-'
+';
 
-if [ "$SENDCC" = "YES" ]; then
-  if [ "$SENDREPORT" = "YES" ]; then
-    echo "$BODY" | mutt -e "unset record" -e "my_hdr From: $FROM" -e "set content_type=text/html" -e "my_hdr X-Priority: 1" -c "$CC" -s "[Erinnerung] $BETREFF" -- "$TO"
-  fi
-  echo "$BODYMG" | mutt -e "unset record" -e "my_hdr From: $FROM" -e "set content_type=text/html" -s "[Cron Report] $BETREFF" -- "$CC"
-elif [ "$SENDCC" = "NO" ]; then
-  if [ "$SENDREPORT" = "YES" ]; then
-    echo "$BODY" | mutt -e "unset record" -e "my_hdr From: $FROM" -e "set content_type=text/html" -e "my_hdr X-Priority: 1" -s "[Erinnerung] $BETREFF" -- "$TO"
-  fi
-  echo "$BODYMG" | mutt -e "unset record" -e "my_hdr From: $FROM" -e "set content_type=text/html" -s "[Cron Report] $BETREFF" -- "$CC"
-else
-  echo "Ein Fehler im Script is aufgetreten. (Weder 'YES' noch 'NO' - $0)"
+#/usr/bin/php -r "mail('$to', '$subject', '$body', '$headers');";
+
+if [ $send == "yes" ]; then
+    # es wird eine benachrichtigung versendet
+    /usr/bin/php -r "mail('$to', '$subject', '$body', '$headers');";
 fi
 
-return 0
+/usr/bin/php -r "mail('$to_report', '$subject_report', '$bodymg', '$headers');";
 
+echo "Script finished.";
