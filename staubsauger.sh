@@ -4,7 +4,7 @@ day=$(date +%-d);
 month=$(date +%-m);
 to_notification='User email <@>'
 to_report='Admin email <@>'
-from='Staubsauger-Erinnerung <staubsauger-erinnerung@dominicreich.com>';
+from='Staubsauger-Erinnerung <staubsauger-erinnerung@oe7drt.cc>';
 subject=`printf "Staubsauger-Erinnerung vom %s" "$date"`;
 subject_report=`printf "[Cron Report] $subject"`;
 host=$(/bin/hostname);
@@ -97,3 +97,4 @@ fi
 
 # A report is always sent out. Keeping track if the script works is a good idea.
 /usr/bin/php -r "mail('$to_report', '$subject_report', '$bodymg', '$headers');";
+
